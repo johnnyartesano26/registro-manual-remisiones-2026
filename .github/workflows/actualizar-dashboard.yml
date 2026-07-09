@@ -1,0 +1,39 @@
+name: Actualizar dashboard
+
+on:
+  schedule:
+    - cron: '0 11 * * *'   # 06:00 hora Colombia (UTC-5) — inicio del día
+  workflow_dispatch:        # permite ejecutarlo manualmente cuando quieras
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias
+        run: pip install cryptography
+
+      - name: Generar dashboard cifrado desde Google Sheets
+        env:
+          DASH_PWD: ${{ secrets.DASH_PWD }}
+        run: python build.py
+
+      - name: Publicar cambios (si hay)
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add dashboard.html
+          if git diff --cached --quiet; then
+            echo "Sin cambios en el dashboard."
+          else
+            git commit -m "Auto-actualiza dashboard ($(date -u +%Y-%m-%d))"
+            git push
+          fi

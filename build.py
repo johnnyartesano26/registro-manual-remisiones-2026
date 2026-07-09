@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Lee el CSV de remisiones, limpia los datos y genera dashboard.html (cifrado)"""
-import csv, re, json, os, base64
+import csv, re, json, os, base64, urllib.request
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -9,6 +9,26 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 HERE = os.path.dirname(os.path.abspath(__file__))
 CSV = os.path.join(HERE, "registro_manual_remisiones_2026.csv")
 OUT = os.path.join(HERE, "dashboard.html")
+
+SHEET_ID = "1z8iPpmgtTIk9ERsUd2ajERzNAsKyjAfbbXlQmnjicHM"
+SHEET_CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
+
+
+def download_csv():
+    """Descarga la hoja de Google como CSV. Si falla, usa la copia local si existe."""
+    try:
+        req = urllib.request.Request(SHEET_CSV_URL, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            data = r.read()
+        with open(CSV, "wb") as f:
+            f.write(data)
+        print(f"CSV descargado de Google Sheets ({len(data)} bytes)")
+    except Exception as e:
+        if os.path.exists(CSV):
+            print(f"AVISO: no se pudo descargar ({e}); uso la copia local.")
+        else:
+            raise SystemExit(f"No se pudo descargar la hoja y no hay copia local: {e}")
+
 
 PASSWORD = os.environ.get("DASH_PWD")  # clave via variable de entorno (no se guarda en el repo)
 if not PASSWORD:
@@ -90,6 +110,7 @@ def client_name(row):
 
 
 def main():
+    download_csv()
     with open(CSV, newline='', encoding='utf-8') as f:
         rows = list(csv.reader(f))
     header = rows[0]
